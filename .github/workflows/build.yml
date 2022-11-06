@@ -1,0 +1,84 @@
+name: Weekly Build
+
+on:
+  workflow_dispatch:
+  push:
+  schedule:
+    - cron: "30 18 * * 1"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    name: ${{ matrix.arch }} Build
+    runs-on: ubuntu-latest
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Install dependencies
+        run: sudo apt -qq update && sudo apt -q install lzip
+
+      - name: Prepare WSA
+        run: |
+          set -xe -o pipefail
+
+          WSA_URL=$(curl -s --show-error \
+                         -d type=ProductId \
+                         -d url=9P3395VX91NR \
+                         -d ring=fast \
+                         https://store.rg-adguard.net/api/GetFiles \
+                    | grep -Po '(?<=href=").*(?=" .*\.msixbundle)')
+          wget -nv -O wsa.msixbundle $WSA_URL
+          unzip -qd wsabundle wsa.msixbundle
+          find wsabundle \
+               -iname "WsaPackage_*_${ARCH}_Release-Nightly.msix" \
+               -exec unzip -qd wsa {} \;
+
+      - name: Prepare GApps
+        run: |
+          set -xe -o pipefail
+
+          ARCH_FULL=$($ARCH == x64 && echo x86_64 || echo arm64)
+          GAPPS_URL=$(curl -s --show-error https://api.opengapps.org/list \
+                      | jq ".archs.$ARCH_FULL.apis.\"11.0\".variants
+                            | .[]
+                            | select(.name == \"pico\")
+                            | .zip" \
+                      | sed 'y/"/ /')
+          wget -nv -O gapps.zip $GAPPS_URL
+
+      - name: Prepare WSAGAScript
+        run: |
+          set -xe -o pipefail
+
+          git clone -q https://github.com/WSA-Community/WSAGAScript
+          chmod +x WSAGAScript/*.sh
+          mv wsa/*.img WSAGAScript/#IMAGES
+          mv gapps.zip WSAGAScript/#GAPPS
+
+      - name: Run scripts
+        working-directory: WSAGAScript
+        run: |
+          set -xe -o pipefail
+
+          sed -i "s/Architecture=\".*\"/Architecture=\"$ARCH\"/" VARIABLES.sh
+          ./extract_gapps_pico.sh >/dev/null
+          sudo ./extend_and_mount_images.sh
+          sudo ./apply.sh
+          sudo ./unmount_images.sh
+
+      - name: Prepare build
+        run: |
+          set -xe -o pipefail
+
+          mv WSAGAScript/#IMAGES/*.img wsa
+          rm -r wsa/{AppxBlockMap.xml,AppxSignature.p7x,\[Content_Types\].xml,AppxMetadata}
+          zip -r9Z bzip2 wsa wsa
+
+      - name: Upload build
+        uses: actions/upload-artifact@v3
+        with:
+          name: wsa-gapps-${{ matrix.arch }}.zip
+          path: wsa.zip
+          if-no-files-found: error
