@@ -1,6 +1,6 @@
 # Weekly WSA builds with GApps
 
-[![Weekly Build](https://github.com/Weathercold/wsa-gapps-builds/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/Weathercold/wsa-gapps-builds/actions/workflows/build.yml)
+![Maintenance](https://img.shields.io/maintenance/no/2023) [![Weekly Build](https://github.com/Weathercold/wsa-gapps-builds/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/Weathercold/wsa-gapps-builds/actions/workflows/build.yml)
 
 Weekly Windows Subsystem for Android builds with Google Apps (specifically the
 pico variant from OpenGApps). Available for both x64 and arm64 architectures.
