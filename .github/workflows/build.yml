@@ -77,7 +77,7 @@ jobs:
           zip -r9Z bzip2 wsa wsa
 
       - name: Upload build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wsa-gapps-${{ matrix.arch }}.zip
           path: wsa.zip
